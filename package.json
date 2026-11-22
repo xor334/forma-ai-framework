@@ -1,0 +1,12 @@
+{
+  "name": "forma-ai-starter-blueprint",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Architecture baseline and runnable widget contracts for entrepreneur-owned projects",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test scripts/fork.test.mjs packages/widget-contract/contract.test.mjs business/extensions/loyalty/loyalty.test.mjs",
+    "init:project": "node scripts/init-project.mjs"
+  }
+}

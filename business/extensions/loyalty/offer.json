@@ -1,0 +1,9 @@
+{
+  "type": "coffee.loyalty",
+  "version": 1,
+  "widgetId": "home-loyalty",
+  "title": "Программа «Своя чашка»",
+  "pointsPerOrder": 20,
+  "rewardCost": 100,
+  "reward": "чашка фильтр-кофе"
+}

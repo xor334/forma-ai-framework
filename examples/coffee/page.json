@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "pageId": "coffee-home",
+  "locale": "ru",
+  "title": "Зерно · кофейня",
+  "widgets": [
+    {
+      "id": "home-cover",
+      "required": true,
+      "targets": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "layout": {
+        "phone": {
+          "span": 12,
+          "align": "start"
+        },
+        "tablet": {
+          "span": 12
+        },
+        "wide": {
+          "span": 12
+        }
+      },
+      "content": {
+        "type": "forma.hero",
+        "version": 1,
+        "props": {
+          "eyebrow": "КОФЕЙНЯ ЗЕРНО",
+          "title": "Утро начинается с чашки.",
+          "body": "Готовим кофе и печём булочки с кардамоном. Заходите на завтрак или заберите заказ с собой.",
+          "action": {
+            "kind": "section",
+            "target": "home-menu",
+            "label": "Посмотреть меню"
+          }
+        }
+      }
+    },
+    {
+      "id": "home-menu",
+      "required": true,
+      "targets": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "layout": {
+        "phone": {
+          "span": 12,
+          "align": "start"
+        },
+        "tablet": {
+          "span": 8
+        },
+        "wide": {
+          "span": 8
+        }
+      },
+      "content": {
+        "type": "forma.menu",
+        "version": 1,
+        "props": {
+          "title": "Сегодня в меню",
+          "items": [
+            {
+              "name": "Фильтр-кофе",
+              "priceRub": 230
+            },
+            {
+              "name": "Капучино",
+              "priceRub": 280
+            },
+            {
+              "name": "Булочка с кардамоном",
+              "priceRub": 190
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "home-hours",
+      "required": false,
+      "targets": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "layout": {
+        "phone": {
+          "span": 12,
+          "align": "start"
+        },
+        "tablet": {
+          "span": 4
+        },
+        "wide": {
+          "span": 4
+        }
+      },
+      "content": {
+        "type": "forma.hours",
+        "version": 2,
+        "props": {
+          "title": "Ждём в гости",
+          "schedule": "Пн–Пт 08:00–20:00 · Сб–Вс 09:00–20:00"
+        }
+      },
+      "fallback": {
+        "type": "forma.text",
+        "version": 1,
+        "props": {
+          "title": "Часы работы",
+          "body": "По будням с 8:00 до 20:00, по выходным с 9:00 до 20:00."
+        }
+      }
+    },
+    {
+      "id": "home-order",
+      "required": true,
+      "targets": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "layout": {
+        "phone": {
+          "span": 12,
+          "align": "start"
+        },
+        "tablet": {
+          "span": 12
+        },
+        "wide": {
+          "span": 12
+        }
+      },
+      "content": {
+        "type": "forma.cta",
+        "version": 1,
+        "props": {
+          "title": "Кофе для команды",
+          "body": "Напишите нам, если хотите заказать кофе и выпечку на встречу.",
+          "action": {
+            "kind": "email",
+            "target": "orders@example.com",
+            "label": "Обсудить заказ"
+          }
+        }
+      }
+    }
+  ]
+}
