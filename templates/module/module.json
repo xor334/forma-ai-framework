@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "id": "example",
+  "version": "0.1.0",
+  "kind": "service",
+  "description": "Назначение модуля",
+  "roles": [],
+  "settings": {},
+  "provides": [],
+  "requires": [],
+  "network": []
+}

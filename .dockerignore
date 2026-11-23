@@ -15,3 +15,7 @@ artifacts/
 .env
 **/.env*
 **/next-env.d.ts
+
+# Separately built business services have their own image contexts.
+business/modules/
+templates/

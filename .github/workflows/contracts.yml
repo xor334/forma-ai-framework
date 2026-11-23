@@ -1,26 +1,73 @@
 name: Framework checks
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
   pilot:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       NEXT_TELEMETRY_DISABLED: '1'
       EXPO_NO_TELEMETRY: '1'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
       - run: npm ci
-      - run: npm run typecheck && npm test
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:pilot
-      - run: npm run test:compose
-      - run: npm ci --prefix apps/mobile --workspaces=false && npm run bundle --prefix apps/mobile
+      - name: Critical platform scenarios
+        run: npm run test:critical
+      - name: Contracts and affected modules
+        id: plan
+        env:
+          DIFF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ "$DIFF_BASE" =~ ^[a-f0-9]{40}$ ]] && git cat-file -e "$DIFF_BASE^{commit}" 2>/dev/null; then
+            node scripts/check-plan.mjs "$DIFF_BASE"
+          else
+            node scripts/check-plan.mjs --all
+          fi
+      - if: steps.plan.outputs.unit == 'true'
+        run: npm run test:unit
+      - if: steps.plan.outputs.unit == 'true' || steps.plan.outputs.browser == 'true'
+        run: npm run typecheck
+      - if: steps.plan.outputs.browser == 'true'
+        run: |
+          npm run build
+          npx playwright install --with-deps chromium webkit
+          npm run test:pilot
+      - if: steps.plan.outputs.compose == 'true'
+        run: npm run test:compose
+      - if: steps.plan.outputs.mobile == 'true'
+        run: npm ci --prefix apps/mobile --workspaces=false && npm run bundle --prefix apps/mobile
+      - name: Build and check the service template
+        if: steps.plan.outputs.template == 'true'
+        run: |
+          docker build -t forma-service-template:check templates/module
+          id=$(docker run -d --network=none --read-only --cap-drop=ALL forma-service-template:check)
+          trap 'docker rm -f "$id" >/dev/null' EXIT
+          docker exec "$id" node -e "fetch('http://127.0.0.1:8080/health').then(async r => { if (!r.ok || !(await r.json()).ok) process.exit(1) })"
+      - name: Affected module tests
+        if: steps.plan.outputs.testModules != '[]'
+        env:
+          MODULE_IDS: ${{ steps.plan.outputs.testModules }}
+        run: |
+          jq -r '.[]' <<< "$MODULE_IDS" | while IFS= read -r id; do
+            npm run module:test -- "$id"
+          done
+      - name: Build affected module images
+        if: steps.plan.outputs.buildCandidates != '[]'
+        env:
+          MODULE_IDS: ${{ steps.plan.outputs.buildCandidates }}
+        run: |
+          jq -r '.[]' <<< "$MODULE_IDS" | while IFS= read -r id; do
+            docker build -t "forma-module-$id:check" "business/modules/$id"
+          done

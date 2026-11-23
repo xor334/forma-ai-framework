@@ -19,3 +19,21 @@ test('agent returns an applicable diff limited to the selected Git blobs', async
     /путь/,
   )
 })
+
+test('business proposals stay inside one component and cannot select the core', async () => {
+  for (const paths of [
+    ['apps/studio/auth.ts'],
+    ['packages/runtime/content.ts'],
+    ['business/extensions/index.mjs'],
+    ['business/modules/one/src/a.mjs', 'business/modules/two/src/b.mjs'],
+  ]) {
+    let called = false
+    await assert.rejects(
+      propose(process.cwd(), 'Правка', paths, () => {
+        called = true
+      }),
+      /путь|одного модуля/,
+    )
+    assert.equal(called, false)
+  }
+})

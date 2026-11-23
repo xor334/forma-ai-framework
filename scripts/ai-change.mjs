@@ -22,15 +22,19 @@ export async function propose(root, instruction, paths, generate) {
     throw Error('Передайте задачу и от 1 до 12 разных файлов')
   const sha = git(root, ['rev-parse', '--verify', 'HEAD']).trim()
   const files = []
+  let directory
   for (const path of paths) {
     if (
-      !/^(apps|packages|business\/extensions|services)\/(?:[\w-]+\/)*[\w.-]+\.(?:tsx?|jsx?|mjs|css|md|json)$/.test(
+      !/^business\/(?:modules|extensions)\/[a-z][a-z0-9-]*\/(?:[\w-]+\/)*[\w.-]+\.(?:tsx?|jsx?|mjs|css|md|json|sql)$/.test(
         path,
       ) ||
       path.includes('..') ||
       path.includes('/node_modules/')
     )
       throw Error('Недоступный путь: ' + path)
+    const selected = path.split('/').slice(0, 3).join('/')
+    if (directory && directory !== selected) throw Error('Выберите файлы одного модуля')
+    directory = selected
     const record = git(root, ['ls-tree', sha, '--', path])
     if (record && !/^100(644|755) blob /.test(record)) throw Error('Требуется обычный файл')
     const content = record ? git(root, ['show', sha + ':' + path]) : null

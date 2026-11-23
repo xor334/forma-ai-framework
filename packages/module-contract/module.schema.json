@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Forma module manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "id", "version", "kind", "description", "roles", "settings", "provides", "requires", "network"],
+  "properties": {
+    "format": { "const": 1 },
+    "id": { "$ref": "#/definitions/id" },
+    "version": { "type": "string", "pattern": "^[0-9]+[.][0-9]+[.][0-9]+$" },
+    "kind": { "enum": ["service", "worker", "agent", "mcp"] },
+    "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "roles": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/id" } },
+    "settings": {
+      "type": "object", "propertyNames": { "$ref": "#/definitions/id" },
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false, "required": ["label", "type"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "type": { "enum": ["string", "boolean", "integer", "secret-ref"] }
+        }
+      }
+    },
+    "provides": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/definitions/contract" } },
+    "requires": {
+      "type": "array", "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["module", "contract"],
+        "properties": { "module": { "$ref": "#/definitions/id" }, "contract": { "$ref": "#/definitions/contract" } }
+      }
+    },
+    "network": {
+      "type": "array", "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["direction", "peer", "protocol", "port", "purpose"],
+        "properties": {
+          "direction": { "enum": ["in", "out"] },
+          "peer": { "type": "string", "minLength": 1, "maxLength": 253, "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$" },
+          "protocol": { "enum": ["tcp", "udp"] },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "purpose": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "id": { "type": "string", "maxLength": 48, "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+    "contract": { "type": "string", "pattern": "^(api|command|event|sql|mcp|package):[a-z][a-z0-9_.-]*@[1-9][0-9]*$" }
+  }
+}
