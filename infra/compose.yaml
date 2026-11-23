@@ -1,0 +1,132 @@
+x-app: &app
+  image: ${FORMA_IMAGE:-forma-framework:local}
+  pull_policy: never
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile
+  restart: unless-stopped
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+x-meta: &meta
+  FORMA_COMMIT: ${FORMA_COMMIT:?run infra/setup.mjs}
+  FORMA_ARTIFACT: ${FORMA_IMAGE:-forma-framework:local}
+x-storage: &storage
+  S3_ENDPOINT: http://objects:8333
+  S3_BUCKET: forma-media
+services:
+  db:
+    image: pgvector/pgvector:pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    environment:
+      POSTGRES_DB: forma
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes: [db:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d forma]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+  objects:
+    image: chrislusf/seaweedfs:4.17@sha256:186de7ef977a20343ee9a5544073f081976a29e2d29ecf8379891e7bf177fbe9
+    command: server -dir=/data -s3 -s3.config=/etc/forma-s3.json -volume.max=5
+    volumes: [objects:/data, ./local/s3.json:/etc/forma-s3.json:ro]
+    restart: unless-stopped
+  provision:
+    <<: *app
+    command: [sh, -ec, "node --import tsx scripts/provision.ts && node --import tsx scripts/provision-objects.ts"]
+    restart: "no"
+    environment:
+      <<: *storage
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db/forma
+      DB_WEB_PASSWORD: ${DB_WEB_PASSWORD:?}
+      DB_STUDIO_PASSWORD: ${DB_STUDIO_PASSWORD:?}
+      DB_WORKER_PASSWORD: ${DB_WORKER_PASSWORD:?}
+      DB_RELEASE_PASSWORD: ${DB_RELEASE_PASSWORD:?}
+      DB_SEARCH_PASSWORD: ${DB_SEARCH_PASSWORD:?}
+      DB_TELEGRAM_PASSWORD: ${DB_TELEGRAM_PASSWORD:?}
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: ${S3_ADMIN_PASSWORD:?}
+    depends_on:
+      db: {condition: service_healthy}
+      objects: {condition: service_started}
+  studio-migrate:
+    <<: *app
+    command: [node, --import, tsx, scripts/migrate-studio.ts]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgres://app_studio:${DB_STUDIO_PASSWORD}@db/forma
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
+    depends_on: {provision: {condition: service_completed_successfully}}
+  web:
+    <<: *app
+    command: [npm, run, start, -w, "@forma/web"]
+    environment:
+      <<: [*meta, *storage]
+      DATABASE_URL: postgres://app_web:${DB_WEB_PASSWORD}@db/forma
+      SEMANTIC_URL: ${SEMANTIC_URL:-}
+      AWS_ACCESS_KEY_ID: reader
+      AWS_SECRET_ACCESS_KEY: ${S3_READER_PASSWORD:?}
+    depends_on: {provision: {condition: service_completed_successfully}}
+  studio:
+    <<: *app
+    command: [npm, run, start, -w, "@forma/studio"]
+    environment:
+      <<: [*meta, *storage]
+      DATABASE_URL: postgres://app_studio:${DB_STUDIO_PASSWORD}@db/forma
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?}
+      APPROVAL_PRIVATE_KEY: ${APPROVAL_PRIVATE_KEY:?}
+      STUDIO_ORIGIN: https://${STUDIO_HOST:?}
+      AWS_ACCESS_KEY_ID: writer
+      AWS_SECRET_ACCESS_KEY: ${S3_WRITER_PASSWORD:?}
+    depends_on: {studio-migrate: {condition: service_completed_successfully}}
+  release:
+    <<: *app
+    command: [node, --import, tsx, services/worker/main.ts, release]
+    environment:
+      <<: *meta
+      DATABASE_URL: postgres://app_release:${DB_RELEASE_PASSWORD}@db/forma
+      APPROVAL_PUBLIC_KEY: ${APPROVAL_PUBLIC_KEY:?}
+      PUBLIC_PROBE_ORIGIN: https://${WEB_HOST:?}
+    depends_on: {web: {condition: service_started}}
+  worker:
+    <<: *app
+    command: [node, --import, tsx, services/worker/main.ts]
+    environment:
+      DATABASE_URL: postgres://app_worker:${DB_WORKER_PASSWORD}@db/forma
+      MODEL_ENDPOINT: ${MODEL_ENDPOINT:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_KEY: ${MODEL_KEY:-}
+    depends_on: {provision: {condition: service_completed_successfully}}
+  search:
+    <<: *app
+    profiles: [semantic]
+    command: [node, --import, tsx, services/worker/search.ts]
+    environment:
+      DATABASE_URL: postgres://app_search:${DB_SEARCH_PASSWORD}@db/forma
+      EMBEDDING_ENDPOINT: ${EMBEDDING_ENDPOINT:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_KEY: ${EMBEDDING_KEY:-}
+    depends_on: {provision: {condition: service_completed_successfully}}
+  telegram:
+    <<: *app
+    profiles: [telegram]
+    command: [node, --import, tsx, services/worker/telegram.ts]
+    environment:
+      DATABASE_URL: postgres://app_telegram:${DB_TELEGRAM_PASSWORD}@db/forma
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      TELEGRAM_AUTO_REPLY: ${TELEGRAM_AUTO_REPLY:-false}
+    depends_on: {provision: {condition: service_completed_successfully}}
+  proxy:
+    image: caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
+    restart: unless-stopped
+    ports: ["80:80","443:443"]
+    environment:
+      WEB_HOST: ${WEB_HOST:?}
+      STUDIO_HOST: ${STUDIO_HOST:?}
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, tls:/data, caddy:/config]
+    depends_on: [web,studio]
+volumes:
+  db: {}
+  objects: {}
+  tls: {}
+  caddy: {}

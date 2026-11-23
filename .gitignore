@@ -16,3 +16,10 @@ node_modules/
 coverage/
 .DS_Store
 /coffee.html
+
+infra/local/
+apps/mobile/dist/
+*.tsbuildinfo
+artifacts/
+test-results/
+next-env.d.ts

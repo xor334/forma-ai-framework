@@ -17,19 +17,22 @@ function webWidget(widget) {
   if (type === 'forma.hero') {
     inner = (props.eyebrow ? '<p class="eyebrow">' + escape(props.eyebrow) + '</p>' : '') + '<h1>' + title + '</h1>';
   }
-  if (type === 'forma.menu') {
+  if (type === 'forma.image') {
+    inner += '<img style="max-width:100%;height:auto" src="/media/' + escape(props.mediaHash) + '" alt="' + escape(props.alt) + '">';
+  } else if (type === 'forma.menu') {
     inner += '<ul>' + props.items.map(item => '<li><span>' + escape(item.name) + '</span><b>' + item.priceRub + ' ₽</b></li>').join('') + '</ul>';
   } else {
     inner += '<p>' + escape(props.body ?? props.schedule) + '</p>' + link(props.action);
   }
   const styles = ['phone', 'tablet', 'wide'].flatMap(size => {
     const layout = layoutAt(widget.layout, size);
-    return ['--' + size + ':' + layout.span, '--a-' + size + ':' + layout.align];
+    const width = layout.widthPercent === undefined ? layout.span : layout.widthPercent + '%';
+    return ['--' + size + ':' + width, '--a-' + size + ':' + layout.align, '--h-' + size + ':' + (layout.minHeightPx ?? 0) + 'px'];
   });
   return '<section class="' + type.split('.')[1] + '" id="widget-' + widget.id + '" style="' + styles.join(';') + '">' + inner + '</section>';
 }
 
-const css = `
+export const css = `
 :root{color-scheme:light;font-family:system-ui,sans-serif;color:#292017;background:#f4f0e6}
 *{box-sizing:border-box}body{margin:0}main{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1rem;width:min(100% - 2rem,65rem);margin:1rem auto}
 section{grid-column:span var(--phone);text-align:var(--a-phone);padding:clamp(1.25rem,4vw,3rem);border-radius:1.2rem;background:#fffaf1;overflow-wrap:anywhere}
@@ -40,23 +43,32 @@ a{display:inline-block;margin-top:1.2rem;padding:.75rem 1rem;border-radius:3rem;
 a:focus-visible{outline:3px solid #89721f;outline-offset:4px}ul{list-style:none;padding:0;margin:1rem 0 0}li{display:flex;gap:1rem;justify-content:space-between;border-top:1px solid #ddd2c2;padding:.75rem 0}li b{white-space:nowrap}
 @media(min-width:48rem){section{grid-column:span var(--tablet);text-align:var(--a-tablet)}main{margin:2rem auto}}
 @media(min-width:70rem){section{grid-column:span var(--wide);text-align:var(--a-wide)}}
+.page-v2{display:flex;flex-wrap:wrap;gap:1rem 0;align-items:flex-start}.page-v2 section{margin-inline:.5rem;width:calc(var(--phone) - 1rem);min-height:var(--h-phone)}
+@media(min-width:48rem){.page-v2 section{width:calc(var(--tablet) - 1rem);min-height:var(--h-tablet)}}
+@media(min-width:70rem){.page-v2 section{width:calc(var(--wide) - 1rem);min-height:var(--h-wide)}}
 `;
 
-export function renderWeb(page, generation = 2) {
-  const sections = resolveWidgets(page, 'web', generation).map(webWidget).join('\n');
+export function webSections(page, generation = 3) {
+  return resolveWidgets(page, 'web', generation).map(webWidget).join('\n');
+}
+
+export function renderWeb(page, generation = 3) {
+  const sections = webSections(page, generation);
   return '<!doctype html>\n<html lang="' + escape(page.locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
-    escape(page.title) + '</title><style>' + css + '</style></head><body><main>' + sections + '</main></body></html>\n';
+    escape(page.title) + '</title><style>' + css + '</style></head><body><main class="page-v' + page.schemaVersion + '">' + sections + '</main></body></html>\n';
 }
 
 // Declarative adapter output. An actual RN/Expo screen implements these primitives and actions.
-export function nativeViewModel(page, target, { size = 'phone', generation = 2 } = {}) {
+export function nativeViewModel(page, target, { size = 'phone', generation = 3 } = {}) {
   if (!['ios', 'android'].includes(target)) throw new Error('Ожидается ios или android');
   const widgets = resolveWidgets(page, target, generation).map(({ id, content, layout }) => {
     const { props } = content;
     const children = [];
     if (props.eyebrow) children.push({ component: 'Text', text: props.eyebrow });
     children.push({ component: 'Text', accessibilityRole: 'header', text: props.title });
-    if (props.items) {
+    if (content.type === 'forma.image') {
+      children.push({component:'Image',path:'/media/'+props.mediaHash,alt:props.alt});
+    } else if (props.items) {
       for (const item of props.items) children.push({ component: 'Text', text: item.name + ' · ' + item.priceRub + ' ₽' });
     } else {
       children.push({ component: 'Text', text: props.body ?? props.schedule });

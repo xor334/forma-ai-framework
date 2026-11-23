@@ -1,12 +1,50 @@
 {
-  "name": "forma-ai-starter-blueprint",
-  "version": "0.1.0",
+  "name": "forma-ai-framework",
+  "version": "0.2.0",
   "private": true,
-  "description": "Architecture baseline and runnable widget contracts for entrepreneur-owned projects",
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24.22.3"
+  },
+  "workspaces": [
+    "apps/web",
+    "apps/studio"
+  ],
   "scripts": {
-    "test": "node --test scripts/fork.test.mjs packages/widget-contract/contract.test.mjs business/extensions/loyalty/loyalty.test.mjs",
-    "init:project": "node scripts/init-project.mjs"
+    "test": "node --test scripts/*.test.mjs packages/widget-contract/*.test.mjs business/extensions/loyalty/*.test.mjs && tsx --test packages/runtime/*.test.ts",
+    "init:project": "node scripts/init-project.mjs",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "owner:create": "tsx scripts/owner.ts",
+    "build": "npm run build -w @forma/web && npm run build -w @forma/studio",
+    "typecheck": "tsc --noEmit",
+    "worker": "tsx services/worker/main.ts",
+    "bot": "tsx services/worker/telegram.ts",
+    "web": "npm run dev -w @forma/web",
+    "studio": "npm run dev -w @forma/studio",
+    "demo": "tsx scripts/demo.ts",
+    "ai:propose": "node scripts/ai-change.mjs",
+    "test:pilot": "tsx tests/pilot.ts",
+    "setup": "node infra/setup.mjs",
+    "test:compose": "node tests/compose-pilot.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1175.0",
+    "@payloadcms/db-postgres": "3.94.1",
+    "next": "16.4.6",
+    "payload": "3.94.1",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "^24.0.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "^19.0.0",
+    "embedded-postgres": "18.7.0-beta.19",
+    "prettier": "3.10.1",
+    "typescript": "5.9.3"
   }
 }

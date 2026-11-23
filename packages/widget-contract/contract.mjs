@@ -1,17 +1,19 @@
-import { readFileSync } from 'node:fs';
+import schema from './page.schema.json' with { type: 'json' };
+import schemaV2 from './page.v2.schema.json' with { type: 'json' };
 import { createHash } from 'node:crypto';
 
-const schema = JSON.parse(readFileSync(new URL('./page.schema.json', import.meta.url), 'utf8'));
 export const targets = Object.freeze(['web', 'ios', 'android']);
-const currentRegistry = new Set(['forma.hero@1', 'forma.menu@1', 'forma.cta@1', 'forma.text@1', 'forma.hours@2']);
+const currentRegistry = new Set(['forma.hero@1', 'forma.menu@1', 'forma.cta@1', 'forma.text@1', 'forma.hours@2','forma.image@1']);
 
 // Enforce the keywords used by our bundled schema. This is not a general-purpose JSON Schema engine.
-function check(rule, value, path) {
+function check(rule, value, path, document) {
   const fail = reason => { throw new TypeError(path + ' — ' + reason); };
   const object = value !== null && typeof value === 'object' && !Array.isArray(value);
   if (rule.$ref) {
-    const key = rule.$ref.split('/').at(-1);
-    return check(schema.$defs[key], value, path);
+    const [file, pointer] = rule.$ref.split('#/');
+    const source = file === 'urn:forma:page:v1' ? schema : document;
+    const target = pointer.split('/').reduce((node, key) => node[key], source);
+    return check(target, value, path, source);
   }
   if (Object.hasOwn(rule, 'const') && value !== rule.const) fail('ожидается ' + rule.const);
   if (rule.enum && !rule.enum.includes(value)) fail('ожидается одно из ' + rule.enum.join(', '));
@@ -19,9 +21,11 @@ function check(rule, value, path) {
     if (!Array.isArray(value)) fail('ожидается массив');
     if (value.length < rule.minItems || value.length > rule.maxItems) fail('недопустимая длина массива');
     if (rule.uniqueItems && new Set(value).size !== value.length) fail('повторяющиеся значения');
-    value.forEach((item, i) => check(rule.items, item, path + '[' + i + ']'));
+    value.forEach((item, i) => check(rule.items, item, path + '[' + i + ']', document));
   } else if (rule.type === 'object' && !object) {
     fail('ожидается объект');
+  } else if (rule.type === 'number') {
+    if (!Number.isFinite(value) || value <= rule.exclusiveMinimum || value > rule.maximum) fail('число вне диапазона');
   } else if (rule.type === 'integer') {
     if (!Number.isInteger(value) || value < rule.minimum || value > rule.maximum) fail('целое число вне диапазона');
   } else if (rule.type === 'string') {
@@ -37,32 +41,38 @@ function check(rule, value, path) {
       if (!Object.hasOwn(value, key)) fail('отсутствует поле ' + key);
     }
     for (const key of Object.keys(value)) {
-      if (Object.hasOwn(rule.properties, key)) check(rule.properties[key], value[key], path + '.' + key);
+      if (Object.hasOwn(rule.properties, key)) check(rule.properties[key], value[key], path + '.' + key, document);
       else if (rule.additionalProperties === false) fail('неизвестное поле ' + key);
     }
   }
-  for (const nested of rule.allOf || []) check(nested, value, path);
+  for (const nested of rule.allOf || []) check(nested, value, path, document);
   if (rule.if) {
     let matches = true;
-    try { check(rule.if, value, path); } catch { matches = false; }
-    if (matches) check(rule.then, value, path);
+    try { check(rule.if, value, path, document); } catch { matches = false; }
+    if (matches) check(rule.then, value, path, document);
   }
 }
 
 export function validatePage(page) {
-  check(schema, page, 'page');
+  const document = page?.schemaVersion === 2 ? schemaV2 : schema;
+  check(document, page, 'page', document);
   const ids = new Set();
   for (const widget of page.widgets) {
     if (ids.has(widget.id)) throw new Error('Повторяется ID виджета ' + widget.id);
     ids.add(widget.id);
+    for (const content of [widget.content, widget.fallback]) {
+      if (content?.type === 'forma.image' && content.version === 1)
+        check(schemaV2.$defs.imageProps, content.props, 'image.props', schemaV2);
+    }
   }
   return page;
 }
 
-export function registryFor(target, generation = 2) {
+export function registryFor(target, generation = 3) {
   if (!targets.includes(target)) throw new Error('Неизвестная платформа ' + target);
-  if (![1, 2].includes(generation)) throw new Error('Неизвестное поколение клиента');
+  if (![1, 2, 3].includes(generation)) throw new Error('Неизвестное поколение клиента');
   const registry = new Set(currentRegistry);
+  if (generation < 3) registry.delete('forma.image@1');
   if (generation === 1) registry.delete('forma.hours@2');
   return registry;
 }
@@ -71,7 +81,7 @@ function contentKey(content) {
   return content.type + '@' + content.version;
 }
 
-export function resolveWidgets(page, target, generation = 2) {
+export function resolveWidgets(page, target, generation = 3) {
   validatePage(page);
   const registry = registryFor(target, generation);
   const resolved = [];
@@ -95,14 +105,7 @@ export function resolveWidgets(page, target, generation = 2) {
   return resolved;
 }
 
-// Breakpoints inherit omitted properties from narrower layouts.
-export function layoutAt(layout, size) {
-  if (!['phone', 'tablet', 'wide'].includes(size)) throw new Error('Неизвестный размер окна');
-  const result = { align: 'start', ...layout.phone };
-  if (size !== 'phone') Object.assign(result, layout.tablet);
-  if (size === 'wide') Object.assign(result, layout.wide);
-  return result;
-}
+export { layoutAt } from './layout.mjs';
 
 function canonical(value) {
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
@@ -128,7 +131,7 @@ function snapshot(page) {
 }
 
 // The reference fork supports the current browser and two installed app generations.
-export function makeRelease(page, supported = { web: [2], ios: [1, 2], android: [1, 2] }) {
+export function makeRelease(page, supported = { web: [3], ios: [1, 2, 3], android: [1, 2, 3] }) {
   for (const target of targets) {
     const generations = supported[target];
     if (!Array.isArray(generations) || !generations.length) throw new Error('Нет профиля выпуска ' + target);

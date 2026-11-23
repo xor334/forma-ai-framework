@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Forma",
+    "slug": "forma-business",
+    "version": "0.2.0",
+    "runtimeVersion": "2",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "plugins": [
+      "expo-file-system"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# Set WAL_ARCHIVE_DIR to a pre-provisioned off-host mount writable by PostgreSQL.
+services:
+  db:
+    command: [postgres, -c, wal_level=replica, -c, archive_mode=on, -c, archive_timeout=300s, -c, "archive_command=test -f /archive/%f || (cp %p /archive/%f.partial && mv /archive/%f.partial /archive/%f)"]
+    volumes:
+      - ${WAL_ARCHIVE_DIR:?set an off-host WAL mount}:/archive

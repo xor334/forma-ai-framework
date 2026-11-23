@@ -1,0 +1,16 @@
+{$WEB_HOST} {
+    encode zstd gzip
+    request_body {
+        max_size 128KB
+    }
+    reverse_proxy web:3100 {
+        header_up X-Forma-Client {remote_host}
+    }
+}
+{$STUDIO_HOST} {
+    encode zstd gzip
+    request_body {
+        max_size 9MB
+    }
+    reverse_proxy studio:3101
+}

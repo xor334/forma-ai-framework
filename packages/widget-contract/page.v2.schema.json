@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:forma:page:v2",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "pageId": {
+      "$ref": "urn:forma:page:v1#/properties/pageId"
+    },
+    "locale": {
+      "$ref": "urn:forma:page:v1#/properties/locale"
+    },
+    "title": {
+      "$ref": "urn:forma:page:v1#/properties/title"
+    },
+    "widgets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "$ref": "#/$defs/widget"
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "pageId",
+    "locale",
+    "title",
+    "widgets"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "widget": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "urn:forma:page:v1#/$defs/widget/properties/id"
+        },
+        "required": {
+          "$ref": "urn:forma:page:v1#/$defs/widget/properties/required"
+        },
+        "targets": {
+          "$ref": "urn:forma:page:v1#/$defs/widget/properties/targets"
+        },
+        "content": {
+          "$ref": "#/$defs/content"
+        },
+        "fallback": {
+          "$ref": "#/$defs/content"
+        },
+        "layout": {
+          "type": "object",
+          "properties": {
+            "phone": {
+              "$ref": "#/$defs/step"
+            },
+            "tablet": {
+              "$ref": "#/$defs/step"
+            },
+            "wide": {
+              "$ref": "#/$defs/step"
+            }
+          },
+          "required": [
+            "phone"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "required",
+        "targets",
+        "layout",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "widthPercent": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "minHeightPx": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "align": {
+          "$ref": "urn:forma:page:v1#/$defs/layoutStep/properties/align"
+        }
+      },
+      "required": [
+        "widthPercent"
+      ],
+      "additionalProperties": false
+    },
+    "imageProps": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "alt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 220
+        },
+        "mediaHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "title",
+        "alt",
+        "mediaHash"
+      ],
+      "additionalProperties": false
+    },
+    "content": {
+      "allOf": [
+        {
+          "$ref": "urn:forma:page:v1#/$defs/content"
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "forma.image"
+              },
+              "version": {
+                "const": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/$defs/imageProps"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

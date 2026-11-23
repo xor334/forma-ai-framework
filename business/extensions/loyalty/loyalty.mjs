@@ -33,7 +33,7 @@ export function withLoyaltyOffer(page, offer) {
     id: offer.widgetId,
     required: true,
     targets: ['web', 'ios', 'android'],
-    layout: { phone: { span: 12 } },
+    layout: { phone: page.schemaVersion === 1 ? {span:12} : {widthPercent:100} },
     content: { type: 'forma.text', version: 1, props: { title: offer.title.trim(), body } }
   };
   return validatePage({ ...page, widgets: [...page.widgets, widget] });

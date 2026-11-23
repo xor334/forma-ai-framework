@@ -1,0 +1,17 @@
+CREATE ROLE forma_web NOLOGIN;
+CREATE ROLE forma_studio NOLOGIN;
+CREATE ROLE forma_worker NOLOGIN;
+CREATE ROLE forma_release NOLOGIN;
+GRANT USAGE ON SCHEMA forma TO forma_web,forma_studio,forma_worker,forma_release;
+GRANT SELECT ON forma.live TO forma_web;
+GRANT EXECUTE ON FUNCTION forma.submit_lead(uuid,text,text), forma.ask(text,text,text) TO forma_web;
+GRANT SELECT ON ALL TABLES IN SCHEMA forma TO forma_studio;
+GRANT INSERT ON forma.drafts,forma.releases,forma.switches,forma.jobs TO forma_studio;
+GRANT UPDATE(status,decided_by,applied_revision) ON forma.jobs TO forma_studio;
+GRANT INSERT,UPDATE,DELETE ON forma.articles TO forma_studio;
+GRANT SELECT ON forma.jobs,forma.drafts TO forma_worker;
+GRANT UPDATE(status,attempt,lease_until,result,error) ON forma.jobs TO forma_worker;
+GRANT SELECT ON forma.site,forma.switches,forma.releases TO forma_release;
+GRANT UPDATE ON forma.site TO forma_release;
+GRANT UPDATE(status) ON forma.switches TO forma_release;
+GRANT INSERT ON forma.roles TO forma_release;
