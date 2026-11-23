@@ -28,8 +28,19 @@ services:
     restart: unless-stopped
   objects:
     image: chrislusf/seaweedfs:4.17@sha256:186de7ef977a20343ee9a5544073f081976a29e2d29ecf8379891e7bf177fbe9
-    command: server -dir=/data -s3 -s3.config=/etc/forma-s3.json -volume.max=5
-    volumes: [objects:/data, ./local/s3.json:/etc/forma-s3.json:ro]
+    # The host file stays private even if its UID differs from the image's service UID.
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        umask 077
+        cp /run/forma-s3-source.json /run/forma-s3/config.json
+        chown seaweed:seaweed /run/forma-s3/config.json
+        exec /entrypoint.sh "$$@"
+      - forma-s3
+    command: [server, -dir=/data, -s3, -s3.config=/run/forma-s3/config.json, -volume.max=5]
+    volumes: [objects:/data, ./local/s3.json:/run/forma-s3-source.json:ro]
+    tmpfs: ["/run/forma-s3:rw,nosuid,nodev,noexec,mode=0755,size=1m"]
     restart: unless-stopped
   provision:
     <<: *app

@@ -11,7 +11,8 @@
     "apps/studio"
   ],
   "scripts": {
-    "test": "node --test scripts/*.test.mjs packages/widget-contract/*.test.mjs business/extensions/loyalty/*.test.mjs && tsx --test packages/runtime/*.test.ts",
+    "test": "npm run test:unit && tsx --test packages/runtime/*.test.ts",
+    "test:unit": "node --test scripts/*.test.mjs packages/widget-contract/*.test.mjs business/extensions/loyalty/*.test.mjs templates/module/tests/*.test.mjs",
     "init:project": "node scripts/init-project.mjs",
     "db:migrate": "tsx scripts/migrate.ts",
     "owner:create": "tsx scripts/owner.ts",
@@ -25,7 +26,12 @@
     "ai:propose": "node scripts/ai-change.mjs",
     "test:pilot": "tsx tests/pilot.ts",
     "setup": "node infra/setup.mjs",
-    "test:compose": "node tests/compose-pilot.mjs"
+    "test:compose": "node tests/compose-pilot.mjs",
+    "module:new": "node scripts/modules.mjs new",
+    "module:check": "node scripts/modules.mjs check",
+    "module:test": "node scripts/modules.mjs test",
+    "check:plan": "node scripts/check-plan.mjs",
+    "test:critical": "tsx --test packages/runtime/platform.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1175.0",
@@ -45,6 +51,7 @@
     "@types/react-dom": "^19.0.0",
     "embedded-postgres": "18.7.0-beta.19",
     "prettier": "3.10.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "ajv": "8.18.0"
   }
 }

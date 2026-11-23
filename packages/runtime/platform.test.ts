@@ -13,6 +13,8 @@ import type { Actor } from './types.ts'
 const owner: Actor = { id: '1', role: 'owner' },
   editor: Actor = { id: '2', role: 'editor' }
 test('drafts, agent decisions, release recovery, access and channels on PostgreSQL', async (t) => {
+  // Missing articles must not fall through to a developer's external embedding provider.
+  delete process.env.SEMANTIC_URL
   const pair = generateKeyPairSync('ed25519')
   process.env.APPROVAL_PRIVATE_KEY = pair.privateKey
     .export({ type: 'pkcs8', format: 'der' })
